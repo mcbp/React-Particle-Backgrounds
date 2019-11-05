@@ -10,6 +10,7 @@ class ParticleBackground extends Component {
     }
     this.canvasRef = React.createRef()
     this.settings = {...ParticleBackground.defaultProps.settings, ...this.props.settings}
+    this.updateFrequency = 1000/60
     this.boundCheckSettings()
     console.log(this.settings)
   }
@@ -25,7 +26,7 @@ class ParticleBackground extends Component {
 
   componentWillUnmount() {
     console.log("unmount")
-    clearInterval(this.state.intervalId)
+    if (this.state.animation) cancelAnimationFrame(this.state.animation)
   }
 
   boundCheckSettings() {
@@ -43,19 +44,26 @@ class ParticleBackground extends Component {
   }
 
   startAnimation(canvas, ctx) {
-    let _this = this
+    /*let _this = this
     let intervalId = setInterval(() => {
       this.drawBackground(canvas, ctx)
       this.drawPaticles(canvas, ctx)
-    }, _this.settings.updateFrequency)
-    this.setState({intervalId})
+    }, _this.updateFrequency)
+    this.setState({intervalId})*/
+    let animation = window.requestAnimationFrame(() => this.draw(canvas, ctx))
+    this.setState({animation})
+  }
+
+  draw(canvas, ctx) {
+    this.drawBackground(canvas, ctx)
+    this.drawPaticles(canvas, ctx)
   }
 
   drawBackground(canvas, ctx) {
     if (this.settings.canvasFillSpace) {
       canvas.style.width = "100%"
-		  canvas.style.height = "100%"
-		  canvas.width  = canvas.offsetWidth
+      canvas.style.height = "100%"
+      canvas.width  = canvas.offsetWidth
       canvas.height = canvas.offsetHeight
     }
   }
@@ -64,6 +72,7 @@ class ParticleBackground extends Component {
 
     for (let i in this.state.particles) {
       let p = this.state.particles[i]
+      ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
 
       // Direction and speed
       p.x += p.vx
@@ -75,7 +84,7 @@ class ParticleBackground extends Component {
 
       // Opacity
       if (this.settings.hasOwnProperty('minOpacity') && this.settings.hasOwnProperty('maxOpacity')) {
-        let rate = (this.settings.updateFrequency/this.settings.opacityTransitionTime)*2
+        let rate = (this.updateFrequency/this.settings.opacityTransitionTime)*2
         if (p.opacity > p.lastOpacity) {
     			p.lastOpacity = p.opacity
     			p.opacity += rate
@@ -101,6 +110,7 @@ class ParticleBackground extends Component {
   		ctx.closePath()
   		ctx.fill()
 		}
+    window.requestAnimationFrame(() => this.drawPaticles(canvas, ctx))
   }
 
   render() {
@@ -121,7 +131,6 @@ ParticleBackground.propTypes = {
   style: PropTypes.object,
   className: PropTypes.string,
   settings: PropTypes.shape({
-    updateFrequency: PropTypes.number,
     canvasFillSpace: PropTypes.bool,
     width: PropTypes.number,
     height: PropTypes.number,
@@ -137,7 +146,6 @@ ParticleBackground.propTypes = {
 
 ParticleBackground.defaultProps = {
   settings: {
-    updateFrequency: 25,
     canvasFillSpace: true,
     width: 200,
     height: 200,
