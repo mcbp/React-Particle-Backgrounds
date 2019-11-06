@@ -6,7 +6,7 @@ class ParticleBackground extends Component {
   constructor(props) {
     super(props)
     this.state = {
-      particles: {}
+      particles: []
     }
     this.canvasRef = React.createRef()
     this.settings = {...ParticleBackground.defaultProps.settings, ...this.props.settings}
@@ -17,11 +17,21 @@ class ParticleBackground extends Component {
 
   componentDidMount() {
     console.log("mount")
-    const canvas = this.canvasRef.current
-    const ctx = canvas.getContext('2d')
-    this.drawBackground(canvas, ctx)
-    this.generateParticles(canvas)
-    this.startAnimation(canvas, ctx)
+    this.canvas = this.canvasRef.current
+    this.ctx = this.canvasRef.current.getContext('2d')
+    this.drawBackground()
+    this.generateParticles()
+    this.startAnimation()
+  }
+
+  componentDidUpdate(prevProps) {
+    if (this.props !== prevProps) {
+      console.log("update")
+      this.settings = {...this.settings, ...this.props.settings}
+      this.boundCheckSettings()
+      let particleChange = this.settings.particleCount - this.state.particles.length
+      this.updateParticles(particleChange)
+    }
   }
 
   componentWillUnmount() {
@@ -35,31 +45,54 @@ class ParticleBackground extends Component {
     if (this.settings.opacityTransitionTime < 0) this.settings.opacityTransitionTime = 1000
   }
 
-  generateParticles(canvas) {
-    let particles = {}
-    for (let i = 0; i < this.settings.density; i++) {
-			particles[i] = new Particle(i, this.settings, canvas)
+  generateParticles() {
+    let canvas = this.canvas
+    let particles = []
+    for (let i = 0; i < this.settings.particleCount; i++) {
+			particles.push(new Particle(i, this.settings, canvas))
 		}
     this.setState({particles})
   }
 
-  startAnimation(canvas, ctx) {
-    /*let _this = this
-    let intervalId = setInterval(() => {
-      this.drawBackground(canvas, ctx)
-      this.drawPaticles(canvas, ctx)
-    }, _this.updateFrequency)
-    this.setState({intervalId})*/
-    let animation = window.requestAnimationFrame(() => this.draw(canvas, ctx))
+  updateParticles(particleChange) {
+    if (particleChange === 0) return
+    if (particleChange > 0) {
+      this.addParticles(particleChange)
+    } else if (particleChange < 0) {
+      this.removeParticles(Math.abs(particleChange))
+    }
+  }
+
+  addParticles(numberToAdd) {
+    let canvas = this.canvas
+    let newParticles = []
+    let currentParticles = this.state.particles
+    for (let i = 0; i < numberToAdd; i++) {
+      newParticles.push(new Particle(i+currentParticles.length, this.settings, canvas))
+    }
+    let particles = [...currentParticles, ...newParticles]
+    this.setState({particles})
+  }
+
+  removeParticles(numberToRemove) {
+    let particles = this.state.particles
+    particles.splice(-numberToRemove, numberToRemove)
+    this.setState({particles})
+  }
+
+  startAnimation() {
+    let animation = window.requestAnimationFrame(() => this.draw())
     this.setState({animation})
   }
 
-  draw(canvas, ctx) {
-    this.drawBackground(canvas, ctx)
-    this.drawPaticles(canvas, ctx)
+  draw() {
+    this.drawBackground()
+    this.drawPaticles()
+    window.requestAnimationFrame(() => this.draw())
   }
 
-  drawBackground(canvas, ctx) {
+  drawBackground() {
+    let canvas = this.canvas
     if (this.settings.canvasFillSpace) {
       canvas.style.width = "100%"
       canvas.style.height = "100%"
@@ -68,11 +101,13 @@ class ParticleBackground extends Component {
     }
   }
 
-  drawPaticles(canvas, ctx) {
+  drawPaticles() {
+    let canvas = this.canvas
+    let ctx = this.ctx
 
     for (let i in this.state.particles) {
       let p = this.state.particles[i]
-      ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
+      //ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
 
       // Direction and speed
       p.x += p.vx
@@ -106,11 +141,10 @@ class ParticleBackground extends Component {
       ctx.beginPath()
   		ctx.fillStyle = this.settings.color
       if (p.hasOwnProperty('opacity')) ctx.globalAlpha = p.opacity
-  		ctx.arc(p.x, p.y, 30, 0, Math.PI*2)
+      ctx.arc(p.x, p.y, 30, 0, Math.PI*2)
   		ctx.closePath()
   		ctx.fill()
 		}
-    window.requestAnimationFrame(() => this.drawPaticles(canvas, ctx))
   }
 
   render() {
@@ -135,7 +169,7 @@ ParticleBackground.propTypes = {
     width: PropTypes.number,
     height: PropTypes.number,
     color: PropTypes.string,
-    density: PropTypes.number,
+    particleCount: PropTypes.number,
     maxSpeed: PropTypes.number,
     minSpeed: PropTypes.number,
     maxOpacity: PropTypes.number,
@@ -150,7 +184,7 @@ ParticleBackground.defaultProps = {
     width: 200,
     height: 200,
     color: '#ff8c69',
-    density: 10,
+    particleCount: 10,
     maxSpeed: 2,
     minSpeed: 0.5,
     opacityTransitionTime: 3000
