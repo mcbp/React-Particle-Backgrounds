@@ -115,12 +115,19 @@ class ParticleBackground extends Component {
       let p = this.state.particles[i]
 
       // Direction and speed
+      if (this.settings.canvas.useBouncyWalls) {
+        if (p.x - p.size < 0 || p.x + p.size > ctx.canvas.width) p.vx *= -1
+        if (p.y - p.size < 0 || p.y + p.size > ctx.canvas.height) p.vy *= -1
+        if (p.x - p.size < 0 && p.vx < 0 || p.x + p.size > ctx.canvas.width && p.vx > 0 ) p.x = p.getRandomInRange(p.size, ctx.canvas.width-p.size)
+        if (p.y - p.size < 0 && p.vy < 0 || p.y + p.size > ctx.canvas.height && p.vy > 0) p.y = p.getRandomInRange(p.size, ctx.canvas.height-p.size)
+      } else {
+        if (p.x < 0) p.x = ctx.canvas.width
+    		if (p.x > ctx.canvas.width) p.x = 0
+    		if (p.y < 0) p.y = ctx.canvas.height
+        if (p.y > ctx.canvas.height) p.y = 0
+      }
       p.x += p.vx
       p.y += p.vy
-      if (p.x < 0) p.x = ctx.canvas.width
-  		if (p.x > ctx.canvas.width) p.x = 0
-  		if (p.y < 0) p.y = ctx.canvas.height
-      if (p.y > ctx.canvas.height) p.y = 0
 
       // Opacity
       let opacity = this.settings.opacity
@@ -147,7 +154,7 @@ class ParticleBackground extends Component {
       ctx.beginPath()
   		ctx.fillStyle = this.settings.particle.color
       if (p.hasOwnProperty('opacity')) ctx.globalAlpha = p.opacity
-      ctx.arc(p.x, p.y, 30, 0, Math.PI*2)
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI*2)
   		ctx.closePath()
   		ctx.fill()
 		}
@@ -175,10 +182,13 @@ ParticleBackground.propTypes = {
       canvasFillSpace: PropTypes.bool,
       width: PropTypes.number,
       height: PropTypes.number,
+      useBouncyWalls: PropTypes.bool
     },
     particle: {
       particleCount: PropTypes.number,
-      color: PropTypes.string
+      color: PropTypes.string,
+      minSize: PropTypes.number,
+      maxSize: PropTypes.number
     },
     speed: {
       minSpeed: PropTypes.number,
@@ -197,18 +207,20 @@ ParticleBackground.defaultProps = {
     canvas: {
       canvasFillSpace: true,
       width: 200,
-      height: 200
+      height: 200,
+      useBouncyWalls: false
     },
     particle: {
       color: '#ff8c69',
-      particleCount: 10
+      particleCount: 10,
+      maxSize: 30
     },
     speed: {
-      minSpeed: 0.5,
-      maxSpeed: 2
+      maxSpeed: 1
     },
     opacity: {
-      opacityTransitionTime: 3000
+      opacityTransitionTime: 3000,
+      maxOpacity: 1
     }
   }
 }
@@ -220,29 +232,41 @@ class Particle {
 	constructor(particleIndex, settings, canvas) {
 
 		this.id = particleIndex;
-    this.x = this.getRandomInRange(0, canvas.width)
-    this.y = this.getRandomInRange(0, canvas.height)
 
     // Direction and speed
     let speed = settings.speed
-    this.vx = this.vy = 0
-    this.vx = Math.random() < 0.5 ?
-              this.getRandomInRange(speed.minSpeed, speed.maxSpeed) :
-              this.getRandomInRange(-speed.minSpeed, -speed.maxSpeed)
-    this.vy = Math.random() < 0.5 ?
-              this.getRandomInRange(speed.minSpeed, speed.maxSpeed) :
-              this.getRandomInRange(-speed.minSpeed, -speed.maxSpeed)
+    if (speed.hasOwnProperty('minSpeed') && speed.hasOwnProperty('maxSpeed')) {
+      this.vx = Math.random() < 0.5 ?
+                this.getRandomInRange(speed.minSpeed, speed.maxSpeed) :
+                this.getRandomInRange(-speed.minSpeed, -speed.maxSpeed)
+      this.vy = Math.random() < 0.5 ?
+                this.getRandomInRange(speed.minSpeed, speed.maxSpeed) :
+                this.getRandomInRange(-speed.minSpeed, -speed.maxSpeed)
+    } else {
+      this.vx = Math.random() < 0.5 ? -speed.maxSpeed : speed.maxSpeed
+      this.vy = Math.random() < 0.5 ? -speed.maxSpeed : speed.maxSpeed
+    }
+
+    // Size
+    let particle = settings.particle
+    if (particle.hasOwnProperty('minSize') && particle.hasOwnProperty('maxSize')) {
+      this.size = this.getRandomInRange(particle.minSize, particle.maxSize)
+    } else {
+      this.size = particle.maxSize
+    }
 
     // Opacity
     let opacity = settings.opacity
     if (opacity.hasOwnProperty('minOpacity') && opacity.hasOwnProperty('maxOpacity')) {
       this.opacity = this.getRandomInRange(opacity.minOpacity, opacity.maxOpacity)
       this.lastOpacity = this.opacity + this.getRandomInRange(-1, 1)
-    } else if (opacity.hasOwnProperty('minOpacity')) {
-      this.opacity = opacity.minOpacity
-    } else if (opacity.hasOwnProperty('maxOpacity')) {
+    } else {
       this.opacity = opacity.maxOpacity
     }
+
+    // Position
+    this.x = this.getRandomInRange(this.size, canvas.width-this.size)
+    this.y = this.getRandomInRange(this.size, canvas.height-this.size)
 
 		return this
 	}
