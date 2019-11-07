@@ -9,10 +9,13 @@ class ParticleBackground extends Component {
       particles: []
     }
     this.canvasRef = React.createRef()
-    this.settings = {...ParticleBackground.defaultProps.settings, ...this.props.settings}
+    this.settings = {}
+    this.settings.canvas = {...ParticleBackground.defaultProps.settings.canvas, ...this.props.settings.canvas}
+    this.settings.particle = {...ParticleBackground.defaultProps.settings.particle, ...this.props.settings.particle}
+    this.settings.speed = {...ParticleBackground.defaultProps.settings.speed, ...this.props.settings.speed}
+    this.settings.opacity = {...ParticleBackground.defaultProps.settings.opacity, ...this.props.settings.opacity}
     this.updateFrequency = 1000/60
     this.boundCheckSettings()
-    console.log(this.settings)
   }
 
   componentDidMount() {
@@ -27,9 +30,12 @@ class ParticleBackground extends Component {
   componentDidUpdate(prevProps) {
     if (this.props !== prevProps) {
       console.log("update")
-      this.settings = {...this.settings, ...this.props.settings}
+      this.settings.canvas = {...this.settings.canvas, ...this.props.settings.canvas}
+      this.settings.particle = {...this.settings.particle, ...this.props.settings.particle}
+      this.settings.speed = {...this.settings.speed, ...this.props.settings.speed}
+      this.settings.opacity = {...this.settings.opacity, ...this.props.settings.opacity}
       this.boundCheckSettings()
-      let particleChange = this.settings.particleCount - this.state.particles.length
+      let particleChange = this.settings.particle.particleCount - this.state.particles.length
       this.updateParticles(particleChange)
     }
   }
@@ -40,15 +46,15 @@ class ParticleBackground extends Component {
   }
 
   boundCheckSettings() {
-    if (this.settings.maxOpacity > 1 || this.settings.maxOpacity < 0) this.settings.maxOpacity = 1
-    if (this.settings.minOpacity < 0 || this.settings.minOpacity > 1) this.settings.minOpacity = 0
-    if (this.settings.opacityTransitionTime < 0) this.settings.opacityTransitionTime = 1000
+    if (this.settings.opacity.maxOpacity > 1 || this.settings.opacity.maxOpacity < 0) this.settings.opacity.maxOpacity = 1
+    if (this.settings.opacity.minOpacity < 0 || this.settings.opacity.minOpacity > 1) this.settings.opacity.minOpacity = 0
+    if (this.settings.opacity.opacityTransitionTime < 0) this.settings.opacity.opacityTransitionTime = 1000
   }
 
   generateParticles() {
     let canvas = this.canvas
     let particles = []
-    for (let i = 0; i < this.settings.particleCount; i++) {
+    for (let i = 0; i < this.settings.particle.particleCount; i++) {
 			particles.push(new Particle(i, this.settings, canvas))
 		}
     this.setState({particles})
@@ -93,7 +99,7 @@ class ParticleBackground extends Component {
 
   drawBackground() {
     let canvas = this.canvas
-    if (this.settings.canvasFillSpace) {
+    if (this.settings.canvas.canvasFillSpace) {
       canvas.style.width = "100%"
       canvas.style.height = "100%"
       canvas.width  = canvas.offsetWidth
@@ -107,7 +113,6 @@ class ParticleBackground extends Component {
 
     for (let i in this.state.particles) {
       let p = this.state.particles[i]
-      //ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
 
       // Direction and speed
       p.x += p.vx
@@ -118,20 +123,21 @@ class ParticleBackground extends Component {
       if (p.y > ctx.canvas.height) p.y = 0
 
       // Opacity
-      if (this.settings.hasOwnProperty('minOpacity') && this.settings.hasOwnProperty('maxOpacity')) {
-        let rate = (this.updateFrequency/this.settings.opacityTransitionTime)*2
+      let opacity = this.settings.opacity
+      if (opacity.hasOwnProperty('minOpacity') && opacity.hasOwnProperty('maxOpacity')) {
+        let rate = (this.updateFrequency/opacity.opacityTransitionTime)*2
         if (p.opacity > p.lastOpacity) {
     			p.lastOpacity = p.opacity
     			p.opacity += rate
-    			if (p.opacity > this.settings.maxOpacity)  {
-            p.opacity = this.settings.maxOpacity
+    			if (p.opacity > opacity.maxOpacity)  {
+            p.opacity = opacity.maxOpacity
             p.lastOpacity = 10
           }
     		} else {
     			p.lastOpacity = p.opacity
     			p.opacity -= rate
-    			if (p.opacity < this.settings.minOpacity)  {
-            p.opacity = this.settings.minOpacity
+    			if (p.opacity < opacity.minOpacity)  {
+            p.opacity = opacity.minOpacity
             p.lastOpacity = -10
           }
     		}
@@ -139,7 +145,7 @@ class ParticleBackground extends Component {
 
       // Draw
       ctx.beginPath()
-  		ctx.fillStyle = this.settings.color
+  		ctx.fillStyle = this.settings.particle.color
       if (p.hasOwnProperty('opacity')) ctx.globalAlpha = p.opacity
       ctx.arc(p.x, p.y, 30, 0, Math.PI*2)
   		ctx.closePath()
@@ -153,8 +159,8 @@ class ParticleBackground extends Component {
         ref={this.canvasRef}
         style={this.props.style}
         className={this.props.className}
-        width={this.settings.width}
-        height={this.settings.height}
+        width={this.settings.canvas.width}
+        height={this.settings.canvas.height}
       />
     )
   }
@@ -165,29 +171,45 @@ ParticleBackground.propTypes = {
   style: PropTypes.object,
   className: PropTypes.string,
   settings: PropTypes.shape({
-    canvasFillSpace: PropTypes.bool,
-    width: PropTypes.number,
-    height: PropTypes.number,
-    color: PropTypes.string,
-    particleCount: PropTypes.number,
-    maxSpeed: PropTypes.number,
-    minSpeed: PropTypes.number,
-    maxOpacity: PropTypes.number,
-    minOpacity: PropTypes.number,
-    opacityTransitionTime: PropTypes.number
+    canvas: {
+      canvasFillSpace: PropTypes.bool,
+      width: PropTypes.number,
+      height: PropTypes.number,
+    },
+    particle: {
+      particleCount: PropTypes.number,
+      color: PropTypes.string
+    },
+    speed: {
+      minSpeed: PropTypes.number,
+      maxSpeed: PropTypes.number
+    },
+    opacity: {
+      minOpacity: PropTypes.number,
+      maxOpacity: PropTypes.number,
+      opacityTransitionTime: PropTypes.number
+    }
   })
 }
 
 ParticleBackground.defaultProps = {
   settings: {
-    canvasFillSpace: true,
-    width: 200,
-    height: 200,
-    color: '#ff8c69',
-    particleCount: 10,
-    maxSpeed: 2,
-    minSpeed: 0.5,
-    opacityTransitionTime: 3000
+    canvas: {
+      canvasFillSpace: true,
+      width: 200,
+      height: 200
+    },
+    particle: {
+      color: '#ff8c69',
+      particleCount: 10
+    },
+    speed: {
+      minSpeed: 0.5,
+      maxSpeed: 2
+    },
+    opacity: {
+      opacityTransitionTime: 3000
+    }
   }
 }
 
@@ -202,22 +224,24 @@ class Particle {
     this.y = this.getRandomInRange(0, canvas.height)
 
     // Direction and speed
+    let speed = settings.speed
     this.vx = this.vy = 0
     this.vx = Math.random() < 0.5 ?
-              this.getRandomInRange(settings.minSpeed, settings.maxSpeed) :
-              this.getRandomInRange(-settings.minSpeed, -settings.maxSpeed)
+              this.getRandomInRange(speed.minSpeed, speed.maxSpeed) :
+              this.getRandomInRange(-speed.minSpeed, -speed.maxSpeed)
     this.vy = Math.random() < 0.5 ?
-              this.getRandomInRange(settings.minSpeed, settings.maxSpeed) :
-              this.getRandomInRange(-settings.minSpeed, -settings.maxSpeed)
+              this.getRandomInRange(speed.minSpeed, speed.maxSpeed) :
+              this.getRandomInRange(-speed.minSpeed, -speed.maxSpeed)
 
     // Opacity
-    if (settings.hasOwnProperty('minOpacity') && settings.hasOwnProperty('maxOpacity')) {
-      this.opacity = this.getRandomInRange(settings.minOpacity, settings.maxOpacity)
+    let opacity = settings.opacity
+    if (opacity.hasOwnProperty('minOpacity') && opacity.hasOwnProperty('maxOpacity')) {
+      this.opacity = this.getRandomInRange(opacity.minOpacity, opacity.maxOpacity)
       this.lastOpacity = this.opacity + this.getRandomInRange(-1, 1)
-    } else if (settings.hasOwnProperty('minOpacity')) {
-      this.opacity = settings.minOpacity
-    } else if (settings.hasOwnProperty('maxOpacity')) {
-      this.opacity = settings.maxOpacity
+    } else if (opacity.hasOwnProperty('minOpacity')) {
+      this.opacity = opacity.minOpacity
+    } else if (opacity.hasOwnProperty('maxOpacity')) {
+      this.opacity = opacity.maxOpacity
     }
 
 		return this
