@@ -1,7 +1,11 @@
 {
   "name": "react-particle-backgrounds",
   "version": "1.0.0",
-  "description": "",
+  "description": "Simple and customisable animated particle backgrounds for React",
+  "author": "Michael Priest",
+  "email": "me@michaelpriest.dev",
+  "license": "MIT",
+  "keywords": ["react", "particle", "background"],
   "main": "build/index.js",
   "peerDependencies": {
     "react": "^16.4.0"
@@ -15,8 +19,6 @@
     "type": "git",
     "url": "git+https://github.com/mcbp/React-Particle-Backgrounds.git"
   },
-  "author": "",
-  "license": "ISC",
   "bugs": {
     "url": "https://github.com/mcbp/React-Particle-Backgrounds/issues"
   },

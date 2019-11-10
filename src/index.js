@@ -12,7 +12,7 @@ class ParticleBackground extends Component {
     this.settings = {}
     this.settings.canvas = {...ParticleBackground.defaultProps.settings.canvas, ...this.props.settings.canvas}
     this.settings.particle = {...ParticleBackground.defaultProps.settings.particle, ...this.props.settings.particle}
-    this.settings.speed = {...ParticleBackground.defaultProps.settings.speed, ...this.props.settings.speed}
+    this.settings.velocity = {...ParticleBackground.defaultProps.settings.velocity, ...this.props.settings.velocity}
     this.settings.opacity = {...ParticleBackground.defaultProps.settings.opacity, ...this.props.settings.opacity}
     this.updateFrequency = 1000/60
     this.boundCheckSettings()
@@ -32,7 +32,7 @@ class ParticleBackground extends Component {
       console.log("update")
       this.settings.canvas = {...this.settings.canvas, ...this.props.settings.canvas}
       this.settings.particle = {...this.settings.particle, ...this.props.settings.particle}
-      this.settings.speed = {...this.settings.speed, ...this.props.settings.speed}
+      this.settings.velocity = {...this.settings.velocity, ...this.props.settings.velocity}
       this.settings.opacity = {...this.settings.opacity, ...this.props.settings.opacity}
       this.boundCheckSettings()
       let particleChange = this.settings.particle.particleCount - this.state.particles.length
@@ -121,10 +121,10 @@ class ParticleBackground extends Component {
         if (p.x - p.size < 0 && p.vx < 0 || p.x + p.size > ctx.canvas.width && p.vx > 0 ) p.x = p.getRandomInRange(p.size, ctx.canvas.width-p.size)
         if (p.y - p.size < 0 && p.vy < 0 || p.y + p.size > ctx.canvas.height && p.vy > 0) p.y = p.getRandomInRange(p.size, ctx.canvas.height-p.size)
       } else {
-        if (p.x < 0) p.x = ctx.canvas.width
-    		if (p.x > ctx.canvas.width) p.x = 0
-    		if (p.y < 0) p.y = ctx.canvas.height
-        if (p.y > ctx.canvas.height) p.y = 0
+        if (p.x + p.size < 0) p.x = ctx.canvas.width + p.size
+    		if (p.x - p.size > ctx.canvas.width) p.x = -p.size
+    		if (p.y + p.size < 0) p.y = ctx.canvas.height + p.size
+        if (p.y - p.size > ctx.canvas.height) p.y = -p.size
       }
       p.x += p.vx
       p.y += p.vy
@@ -190,7 +190,9 @@ ParticleBackground.propTypes = {
       minSize: PropTypes.number,
       maxSize: PropTypes.number
     },
-    speed: {
+    velocity: {
+      directionAngle: PropTypes.number,
+      directionAngleVariance: PropTypes.number,
       minSpeed: PropTypes.number,
       maxSpeed: PropTypes.number
     },
@@ -211,11 +213,11 @@ ParticleBackground.defaultProps = {
       useBouncyWalls: false
     },
     particle: {
-      color: '#ff8c69',
-      particleCount: 10,
-      maxSize: 30
+      color: '#94ecbe',
+      particleCount: 50,
+      maxSize: 5
     },
-    speed: {
+    velocity: {
       maxSpeed: 1
     },
     opacity: {
@@ -230,21 +232,34 @@ export default ParticleBackground
 class Particle {
 
 	constructor(particleIndex, settings, canvas) {
-
 		this.id = particleIndex;
 
-    // Direction and speed
-    let speed = settings.speed
-    if (speed.hasOwnProperty('minSpeed') && speed.hasOwnProperty('maxSpeed')) {
-      this.vx = Math.random() < 0.5 ?
-                this.getRandomInRange(speed.minSpeed, speed.maxSpeed) :
-                this.getRandomInRange(-speed.minSpeed, -speed.maxSpeed)
-      this.vy = Math.random() < 0.5 ?
-                this.getRandomInRange(speed.minSpeed, speed.maxSpeed) :
-                this.getRandomInRange(-speed.minSpeed, -speed.maxSpeed)
+    // Direction
+    let velocity = settings.velocity
+    if (velocity.hasOwnProperty('directionAngle')) {
+      console.log("directionAngle")
+      if (velocity.hasOwnProperty('directionAngleVariance')) {
+        let angle = this.getRandomInRange(velocity.directionAngle-velocity.directionAngleVariance, velocity.directionAngle+velocity.directionAngleVariance)
+        this.vx = this.getCos(angle-90)
+        this.vy = this.getSin(angle-90)
+      } else {
+        this.vx = this.getCos(velocity.directionAngle-90)
+        this.vy = this.getSin(velocity.directionAngle-90)
+      }
     } else {
-      this.vx = Math.random() < 0.5 ? -speed.maxSpeed : speed.maxSpeed
-      this.vy = Math.random() < 0.5 ? -speed.maxSpeed : speed.maxSpeed
+      let angle = this.getRandomInRange(0, 360)
+      this.vx = this.getCos(angle-90)
+      this.vy = this.getSin(angle-90)
+    }
+
+    // Speed
+    if (velocity.hasOwnProperty('minSpeed') && velocity.hasOwnProperty('maxSpeed')) {
+      let speedAdjust = this.getRandomInRange(velocity.minSpeed, velocity.maxSpeed)
+      this.vx *= speedAdjust
+      this.vy *= speedAdjust
+    } else {
+      this.vx *= velocity.maxSpeed
+      this.vy *= velocity.maxSpeed
     }
 
     // Size
@@ -270,6 +285,18 @@ class Particle {
 
 		return this
 	}
+
+  toRadians(angle) {
+    return angle * (Math.PI / 180)
+  }
+
+  getSin(angle) {
+    return Math.round(Math.sin(this.toRadians(angle))*10000+Number.EPSILON)/10000
+  }
+
+  getCos(angle) {
+    return Math.round(Math.cos(this.toRadians(angle))*10000+Number.EPSILON)/10000
+  }
 
 	getRandomInRange(min, max) {
 		return (Math.random() * (max - min) + min)
