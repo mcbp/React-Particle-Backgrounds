@@ -5,7 +5,11 @@
   "author": "Michael Priest",
   "email": "me@michaelpriest.dev",
   "license": "MIT",
-  "keywords": ["react", "particle", "background"],
+  "keywords": [
+    "react",
+    "particle",
+    "background"
+  ],
   "main": "build/index.js",
   "peerDependencies": {
     "react": "^16.4.0"
