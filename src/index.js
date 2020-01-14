@@ -19,7 +19,6 @@ class ParticleBackground extends Component {
   }
 
   componentDidMount() {
-    console.log("mount")
     this.canvas = this.canvasRef.current
     this.ctx = this.canvasRef.current.getContext('2d')
     this.drawBackground()
@@ -29,7 +28,6 @@ class ParticleBackground extends Component {
 
   componentDidUpdate(prevProps) {
     if (this.props !== prevProps) {
-      console.log("update")
       this.settings.canvas = {...this.settings.canvas, ...this.props.settings.canvas}
       this.settings.particle = {...this.settings.particle, ...this.props.settings.particle}
       this.settings.velocity = {...this.settings.velocity, ...this.props.settings.velocity}
@@ -41,7 +39,6 @@ class ParticleBackground extends Component {
   }
 
   componentWillUnmount() {
-    console.log("unmount")
     if (this.state.animation) cancelAnimationFrame(this.state.animation)
   }
 
@@ -237,7 +234,6 @@ class Particle {
     // Direction
     let velocity = settings.velocity
     if (velocity.hasOwnProperty('directionAngle')) {
-      console.log("directionAngle")
       if (velocity.hasOwnProperty('directionAngleVariance')) {
         let angle = this.getRandomInRange(velocity.directionAngle-velocity.directionAngleVariance, velocity.directionAngle+velocity.directionAngleVariance)
         this.vx = this.getCos(angle-90)
