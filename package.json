@@ -39,7 +39,7 @@
     "webpack-cli": "^4.10.0"
   },
   "peerDependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react": "^16.8.0",
+    "react-dom": "^16.8.0"
   }
 }
