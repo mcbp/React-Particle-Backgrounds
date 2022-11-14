@@ -1,118 +1,149 @@
-import React, { Component } from "react"
-import PropTypes from 'prop-types'
+import React, { useState, useEffect, useRef } from "react";
+import PropTypes from 'prop-types';
 
-class ParticleBackground extends Component {
+const ParticleBackground = props => {
 
-  constructor(props) {
-    super(props)
-    this.state = {
-      particles: []
-    }
-    this.canvasRef = React.createRef()
-    this.settings = {}
-    this.settings.canvas = {...ParticleBackground.defaultProps.settings.canvas, ...this.props.settings.canvas}
-    this.settings.particle = {...ParticleBackground.defaultProps.settings.particle, ...this.props.settings.particle}
-    this.settings.velocity = {...ParticleBackground.defaultProps.settings.velocity, ...this.props.settings.velocity}
-    this.settings.opacity = {...ParticleBackground.defaultProps.settings.opacity, ...this.props.settings.opacity}
-    this.updateFrequency = 1000/60
-    this.boundCheckSettings()
-  }
-
-  componentDidMount() {
-    this.canvas = this.canvasRef.current
-    this.ctx = this.canvasRef.current.getContext('2d')
-    this.drawBackground()
-    this.generateParticles()
-    this.startAnimation()
-  }
-
-  componentDidUpdate(prevProps) {
-    if (this.props !== prevProps) {
-      this.settings.canvas = {...this.settings.canvas, ...this.props.settings.canvas}
-      this.settings.particle = {...this.settings.particle, ...this.props.settings.particle}
-      this.settings.velocity = {...this.settings.velocity, ...this.props.settings.velocity}
-      this.settings.opacity = {...this.settings.opacity, ...this.props.settings.opacity}
-      this.boundCheckSettings()
-      let particleChange = this.settings.particle.particleCount - this.state.particles.length
-      this.updateParticles(particleChange)
+  const defaults = {
+    canvas: {
+      canvasFillSpace: true,
+      width: 200,
+      height: 200,
+      useBouncyWalls: false
+    },
+    particle: {
+      color: '#94ecbe',
+      particleCount: 1,
+      maxSize: 5
+    },
+    velocity: {
+      maxSpeed: 1
+    },
+    opacity: {
+      opacityTransitionTime: 3000,
+      maxOpacity: 1
     }
   }
 
-  componentWillUnmount() {
-    if (this.state.animation) cancelAnimationFrame(this.state.animation)
+  const [particles, setParticles] = useState([]);
+  const [animation, setAnimation] = useState(null);
+
+  const { settings } = props;
+  const [settingsWithDefaults, setSettingsWithDefaults] = useState(merge(defaults, settings));
+  console.log(settingsWithDefaults);
+
+  const updateFrequency = 1000/60;
+
+  const canvasRef = useRef(null);
+  const isFirstRender = useRef(true);
+  const animRef = useRef(null);
+
+  // Init
+  useEffect(() => {
+    let ctx = canvasRef.current.getContext('2d');
+    boundCheckSettings();
+    drawBackground();
+    generateParticles();
+  }, []);
+
+  // Ensure animation starts after particles generated and stops when unmounted
+  useEffect(() => {
+    //if (!animation && particles.length > 0) {
+    if (!animRef.current && particles.length > 0) {
+      startAnimation();
+    }
+    return () => {
+      if (animRef.current) window.cancelAnimationFrame(animation);
+    }
+  }, [particles, animation])
+
+  // watch settings and apply appropriate updates
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+    } else {
+      setSettingsWithDefaults(merge(settingsWithDefaults, settings));
+      boundCheckSettings();
+      let particleChange = settingsWithDefaults.particle.particleCount - particles.length;
+      updateParticles(particleChange)
+    }
+  }, [settings]);
+
+  // Restart anim if particles change
+  useEffect(() => {
+    window.cancelAnimationFrame(animRef.current);
+    startAnimation();
+  }, [particles])
+
+  const boundCheckSettings = () => {
+    if (settingsWithDefaults.opacity.maxOpacity > 1 || settingsWithDefaults.opacity.maxOpacity < 0) settingsWithDefaults.opacity.maxOpacity = 1
+    if (settingsWithDefaults.opacity.minOpacity < 0 || settingsWithDefaults.opacity.minOpacity > 1) settingsWithDefaults.opacity.minOpacity = 0
+    if (settingsWithDefaults.opacity.opacityTransitionTime < 0) settingsWithDefaults.opacity.opacityTransitionTime = 1000
   }
 
-  boundCheckSettings() {
-    if (this.settings.opacity.maxOpacity > 1 || this.settings.opacity.maxOpacity < 0) this.settings.opacity.maxOpacity = 1
-    if (this.settings.opacity.minOpacity < 0 || this.settings.opacity.minOpacity > 1) this.settings.opacity.minOpacity = 0
-    if (this.settings.opacity.opacityTransitionTime < 0) this.settings.opacity.opacityTransitionTime = 1000
-  }
-
-  generateParticles() {
-    let canvas = this.canvas
-    let particles = []
-    for (let i = 0; i < this.settings.particle.particleCount; i++) {
-			particles.push(new Particle(i, this.settings, canvas))
+  const generateParticles = () => {
+    let canvas = canvasRef.current;
+    let newParticles = [];
+    for (let i = 0; i < settingsWithDefaults.particle.particleCount; i++) {
+			newParticles.push(new Particle(i, settingsWithDefaults, canvas));
 		}
-    this.setState({particles})
+    setParticles(newParticles);
   }
 
-  updateParticles(particleChange) {
-    if (particleChange === 0) return
+  const updateParticles = (particleChange) => {
+    if (particleChange === 0) return;
     if (particleChange > 0) {
-      this.addParticles(particleChange)
+      addParticles(particleChange);
     } else if (particleChange < 0) {
-      this.removeParticles(Math.abs(particleChange))
+      removeParticles(Math.abs(particleChange));
     }
   }
 
-  addParticles(numberToAdd) {
-    let canvas = this.canvas
-    let newParticles = []
-    let currentParticles = this.state.particles
+  const addParticles = (numberToAdd) => {
+    let canvas = canvasRef.current;
+    let newParticles = [];
+    let currentParticles = particles;
     for (let i = 0; i < numberToAdd; i++) {
-      newParticles.push(new Particle(i+currentParticles.length, this.settings, canvas))
+      newParticles.push(new Particle(i+currentParticles.length, settingsWithDefaults, canvas));
     }
-    let particles = [...currentParticles, ...newParticles]
-    this.setState({particles})
+    let updatedParticles = [...currentParticles, ...newParticles];
+    setParticles(updatedParticles);
   }
 
-  removeParticles(numberToRemove) {
-    let particles = this.state.particles
-    particles.splice(-numberToRemove, numberToRemove)
-    this.setState({particles})
+  const removeParticles = (numberToRemove) => {
+    let reducedParticles = particles;
+    reducedParticles.splice(-numberToRemove, numberToRemove)
+    setParticles(reducedParticles);
   }
 
-  startAnimation() {
-    let animation = window.requestAnimationFrame(() => this.draw())
-    this.setState({animation})
+  const startAnimation = () => {
+    draw();
   }
 
-  draw() {
-    this.drawBackground()
-    this.drawPaticles()
-    window.requestAnimationFrame(() => this.draw())
+  const draw = () => {
+    drawBackground();
+    drawParticles();
+    animRef.current = window.requestAnimationFrame(() => draw());
   }
 
-  drawBackground() {
-    let canvas = this.canvas
-    if (this.settings.canvas.canvasFillSpace) {
-      canvas.style.width = "100%"
-      canvas.style.height = "100%"
-      canvas.width  = canvas.offsetWidth
-      canvas.height = canvas.offsetHeight
+  const drawBackground = () => {
+    let canvas = canvasRef.current;
+    if (settingsWithDefaults.canvas.canvasFillSpace) {
+      canvas.style.width = "100%";
+      canvas.style.height = "100%";
+      canvas.width  = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
     }
   }
 
-  drawPaticles() {
-    let canvas = this.canvas
-    let ctx = this.ctx
+  const drawParticles = () => {
+    let canvas = canvasRef.current;
+    let ctx = canvas.getContext('2d');
 
-    for (let i in this.state.particles) {
-      let p = this.state.particles[i]
+    for (let i in particles) {
+      let p = particles[i];
 
       // Direction and speed
-      if (this.settings.canvas.useBouncyWalls) {
+      if (settingsWithDefaults.canvas.useBouncyWalls) {
         if (p.x - p.size < 0 || p.x + p.size > ctx.canvas.width) p.vx *= -1
         if (p.y - p.size < 0 || p.y + p.size > ctx.canvas.height) p.vy *= -1
         if (p.x - p.size < 0 && p.vx < 0 || p.x + p.size > ctx.canvas.width && p.vx > 0 ) p.x = p.getRandomInRange(p.size, ctx.canvas.width-p.size)
@@ -123,13 +154,13 @@ class ParticleBackground extends Component {
     		if (p.y + p.size < 0) p.y = ctx.canvas.height + p.size
         if (p.y - p.size > ctx.canvas.height) p.y = -p.size
       }
-      p.x += p.vx
-      p.y += p.vy
+      p.x += p.vx;
+      p.y += p.vy;
 
       // Opacity
-      let opacity = this.settings.opacity
+      let opacity = settingsWithDefaults.opacity
       if (opacity.hasOwnProperty('minOpacity') && opacity.hasOwnProperty('maxOpacity')) {
-        let rate = (this.updateFrequency/opacity.opacityTransitionTime)*2
+        let rate = (updateFrequency/opacity.opacityTransitionTime)*2
         if (p.opacity > p.lastOpacity) {
     			p.lastOpacity = p.opacity
     			p.opacity += rate
@@ -148,26 +179,24 @@ class ParticleBackground extends Component {
       }
 
       // Draw
-      ctx.beginPath()
-  		ctx.fillStyle = this.settings.particle.color
-      if (p.hasOwnProperty('opacity')) ctx.globalAlpha = p.opacity
-      ctx.arc(p.x, p.y, p.size, 0, Math.PI*2)
-  		ctx.closePath()
-  		ctx.fill()
+      ctx.beginPath();
+  		ctx.fillStyle = settingsWithDefaults.particle.color;
+      if (p.hasOwnProperty('opacity')) ctx.globalAlpha = p.opacity;
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+  		ctx.closePath();
+  		ctx.fill();
 		}
   }
 
-  render() {
-    return (
-      <canvas
-        ref={this.canvasRef}
-        style={this.props.style}
-        className={this.props.className}
-        width={this.settings.canvas.width}
-        height={this.settings.canvas.height}
-      />
-    )
-  }
+  return (
+    <canvas
+      ref={canvasRef}
+      style={props.style}
+      className={props.className}
+      width={settingsWithDefaults.canvas.width}
+      height={settingsWithDefaults.canvas.height}
+    />
+  )
 
 }
 
@@ -175,56 +204,33 @@ ParticleBackground.propTypes = {
   style: PropTypes.object,
   className: PropTypes.string,
   settings: PropTypes.shape({
-    canvas: {
+    canvas: PropTypes.shape({
       canvasFillSpace: PropTypes.bool,
       width: PropTypes.number,
       height: PropTypes.number,
       useBouncyWalls: PropTypes.bool
-    },
-    particle: {
+    }),
+    particle: PropTypes.shape({
       particleCount: PropTypes.number,
       color: PropTypes.string,
       minSize: PropTypes.number,
       maxSize: PropTypes.number
-    },
-    velocity: {
+    }),
+    velocity: PropTypes.shape({
       directionAngle: PropTypes.number,
       directionAngleVariance: PropTypes.number,
       minSpeed: PropTypes.number,
       maxSpeed: PropTypes.number
-    },
-    opacity: {
+    }),
+    opacity: PropTypes.shape({
       minOpacity: PropTypes.number,
       maxOpacity: PropTypes.number,
       opacityTransitionTime: PropTypes.number
-    }
+    })
   })
 }
 
-ParticleBackground.defaultProps = {
-  settings: {
-    canvas: {
-      canvasFillSpace: true,
-      width: 200,
-      height: 200,
-      useBouncyWalls: false
-    },
-    particle: {
-      color: '#94ecbe',
-      particleCount: 50,
-      maxSize: 5
-    },
-    velocity: {
-      maxSpeed: 1
-    },
-    opacity: {
-      opacityTransitionTime: 3000,
-      maxOpacity: 1
-    }
-  }
-}
-
-export default ParticleBackground
+export default ParticleBackground;
 
 class Particle {
 
@@ -298,4 +304,12 @@ class Particle {
 		return (Math.random() * (max - min) + min)
 	}
 
+}
+  
+export const merge = (target, source) => {
+  for (const key of Object.keys(source)) {
+    if (source[key] instanceof Object) Object.assign(source[key], merge(target[key], source[key]))
+  }
+  Object.assign(target || {}, source)
+  return target
 }
